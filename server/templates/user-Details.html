@@ -1,0 +1,32 @@
+
+<div class = "row">
+	<div class="col-md-3">
+		Dear {{ data.username }},
+	</div>
+	<div class="col-md-9"></div>
+</div>
+
+<div class = "row">
+	<p>Please find the Details of the Server Access of <b>{{ data.server_ip }}</b>. </p>
+	<p>Please Download Attached Files and Execute below command from File Downloaded Location on Terminal</p>
+</div>
+
+<div class="row">
+	<table class="table table-bordered table-hover">
+		<thead>
+			<tr>
+				<th class="text-left">SSH Command Details</th>
+				<th class="text-left">Expiry Date</th>
+				<th class="text-left">Passphrase</th>
+			</tr>
+		</thead>
+		<tbody>
+				<tr>
+					<td> sudo ssh -v {{ username }}@{{ data.server_ip }} -i {{ username }} -p {{ data.port }}</td>
+					<td>{{ data.time_period }}</td>
+					<td>{{ passpharse }}</td>
+				</tr>
+		</tbody>
+	</table>
+
+</div>
