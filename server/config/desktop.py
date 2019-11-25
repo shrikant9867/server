@@ -7,7 +7,7 @@ def get_data():
 		{
 			"module_name": "Server-Access",
 			"color": "grey",
-			"icon": "octicon octicon-file-directory",
+			"icon": "octicon octicon-key",
 			"type": "module",
 			"label": _("Server-Access")
 		}
