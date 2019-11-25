@@ -31,6 +31,9 @@ class ServerAccessPortal(Document):
 			between_date = parser.parse(between_date).date()
 			frappe.throw("<b>Expiry Date</b> should not Today's date,Please \
 				Add Expiry Date between <b>'"+str(between_date)+"' to '"+str(expiry_date)+"'</b>")
+
+		if not self.sudo_request_to_support and self.sudo_access_request:
+			frappe.throw("Please Provide Support ID")
 	
 	def create_user_command(self):
 		username  = self.username.replace(' ','')
@@ -102,15 +105,15 @@ class ServerAccessPortal(Document):
 						attachments= attachments
 					)
 			if self.sudo_user_access:
-				emp_email = frappe.db.get_values("Employee",{"designation":"Technical Support Engineer"},["user_id"],as_dict=1)
-				user_id_email = [email.get('user_id') for email in emp_email]
-				frappe.sendmail(
-						subject='Server Access Details',
-						recipients= user_id_email,
-						message=frappe.render_template(
-							"templates/sudo_access_request.html",{"data":self , "username": username, "password": password}),
-						now=True
-					)
+				if len(self.sudo_request_to_support):
+					emp_email = frappe.db.get_values("Employee",{"name": self.sudo_request_to_support},["user_id","employee_name"], as_dict=1)
+					frappe.sendmail(
+							subject='Server Access Details',
+							recipients= emp_email[0].get('user_id'),
+							message=frappe.render_template(
+								"templates/sudo_access_request.html",{"data":self , "username": username, "password": password, "support_name": emp_email[0].get('employee_name')}),
+							now=True
+						)
 
 		except Exception as e:
 			raise e
@@ -156,6 +159,16 @@ class ServerAccessPortal(Document):
 					
 
     
+@frappe.whitelist()
+def get_support_member(doctype,text,searchfields,start,pagelen,filters):
+	return frappe.db.sql(""" 
+		select 
+			name,employee_name
+		from
+			`tabEmployee`
+		where
+			designation='{designation}'		
+		""".format( designation = filters.get('Designation')))
 
 		
 
