@@ -22,7 +22,6 @@ class ServerAccessPortal(Document):
 		user_exp_date = parser.parse(self.time_period).date()
 		expiry_date = add_days(nowdate(),days)
 		expiry_date = parser.parse(expiry_date).date()
-		emp_details = frappe.db.get_values("Employee",{"name": self.sudo_request_to_support},["user_id","employee_name"], as_dict=1)
 
 		
 		if user_exp_date > expiry_date:
@@ -34,11 +33,13 @@ class ServerAccessPortal(Document):
 			frappe.throw("<b>Expiry Date</b> should not Today's date,Please \
 				Add Expiry Date between <b>'"+str(between_date)+"' to '"+str(expiry_date)+"'</b>")
 
-		if not self.sudo_request_to_support and self.sudo_access_request:
+		if not self.sudo_request_to_support and self.sudo_user_access:
 			frappe.throw("Please Provide Support ID")
 
-		if emp_details[0].get('employee_name') == self.username:
-			frappe.throw("<b>You can't Send Sudo Access Request to Self, Send it to Other Support Member</b>")
+		if self.sudo_request_to_support:
+			emp_details = frappe.db.get_values("Employee",{"name": self.sudo_request_to_support},["user_id","employee_name"], as_dict=1)
+			if emp_details[0].get('employee_name') == self.username:
+				frappe.throw("<b>You can't Send Sudo Access Request to Self, Send it to Other Support Member</b>")
 	
 	def create_user_command(self):
 		username  = self.username.replace(' ','')
