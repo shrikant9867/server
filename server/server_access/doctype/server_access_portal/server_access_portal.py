@@ -22,6 +22,8 @@ class ServerAccessPortal(Document):
 		user_exp_date = parser.parse(self.time_period).date()
 		expiry_date = add_days(nowdate(),days)
 		expiry_date = parser.parse(expiry_date).date()
+		emp_details = frappe.db.get_values("Employee",{"name": self.sudo_request_to_support},["user_id","employee_name"], as_dict=1)
+
 		
 		if user_exp_date > expiry_date:
 			frappe.throw("<b>Expiry Date</b> should not more than 5 Days")
@@ -34,6 +36,9 @@ class ServerAccessPortal(Document):
 
 		if not self.sudo_request_to_support and self.sudo_access_request:
 			frappe.throw("Please Provide Support ID")
+
+		if emp_details[0].get('employee_name') == self.username:
+			frappe.throw("<b>You can't Send Sudo Access Request to Self, Send it to Other Support Member</b>")
 	
 	def create_user_command(self):
 		username  = self.username.replace(' ','')
