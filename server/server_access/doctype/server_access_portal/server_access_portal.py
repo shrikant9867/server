@@ -8,13 +8,13 @@ from distutils.spawn import find_executable
 from datetime import datetime
 import paramiko, random, string
 from frappe.model.document import Document
-import re, smtplib
+import re, smtplib, json
 from frappe.utils import encode, nowdate, cstr, flt, cint, now, getdate,add_days,random_string
 from dateutil import parser
 
 
 passpharse = frappe.utils.random_string(length=12)
-
+count = 1
 
 class ServerAccessPortal(Document):
 	def validate(self):
@@ -139,6 +139,7 @@ class ServerAccessPortal(Document):
 				command_list = self.create_user_command()
 				for i in command_list.get('cmd'):
 					command_list_string = command_list_string+";"+i
+
 				key = paramiko.RSAKey.from_private_key_file(pkey_file)
 				s = paramiko.SSHClient()
 				s.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -164,7 +165,107 @@ class ServerAccessPortal(Document):
 			raise e
 					
 
-    
+
+@frappe.whitelist()
+def remove_user(filters):
+	count = 1 
+	data = ssh_to_user(filters,  count)
+	data.update({'user_removed': 1 })
+	return data
+
+@frappe.whitelist()
+def sudo_access_grant(filters):
+	count = 2
+	data = ssh_to_user(filters, count)
+	data.update({'sudo_access_granted': 1})
+	return data
+
+def ssh_to_user(filters, count):
+	try:
+		filters = json.loads(filters)
+		command_list_string = ''
+		host_ip = filters.get('server_ip')
+		response = subprocess.call(['ping','-c','1',host_ip])
+		if response == 0:
+			cwd = os.getcwd()
+			path = cwd.replace('sites','apps/server/pulluser_indictrans_server')
+			hostname = host_ip
+			username = 's-a-p'
+			port = filters.get('port')
+			pkey_file = path
+			if count == 1:
+				command_list = remove_user_from_server(filters)
+				cmd =command_list.get('cmd') 
+			elif count == 2:
+				command_list = sudo_privilege_granting(filters)
+				print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",command_list.get('cmd'))
+				cmd = command_list.get('cmd')
+				
+			print("-=-=-=-=-=-=", command_list.get('cmd'))
+			key = paramiko.RSAKey.from_private_key_file(pkey_file)
+			s = paramiko.SSHClient()
+			s.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+			s.load_system_host_keys()
+			s.connect(str(hostname), str(port), str(username),pkey=key)
+			print ("**********************3 *************", command_list.get('cmd'))
+			stdin, stdout, stderr = s.exec_command(str(cmd))
+			output = stdout.read()
+			print ("========><======",output)
+			s.close()
+			return filters
+			
+		else:
+			frappe.throw("Server IP is not Reachable:",host_ip)
+
+	except Exception as e:
+		raise e
+
+def remove_user_from_server(filters):
+	try:
+		username = filters.get('username').replace(' ','')
+		add_current_expiry_date = nowdate()
+		userdel_cmd = "sudo pkill -KILL -u "+username+" && sudo usermod -e '"+add_current_expiry_date+"' "+username
+		return { 'cmd': userdel_cmd }
+
+	except Exception as e:
+		raise e
+
+def sudo_privilege_granting(filters):
+	try:
+		username = filters.get('username').replace(' ','')
+		file = open("customalias.sh","w+")
+		file1 = open("customsource.sh","w+")
+		profile_condition = "if [ `whoami` == "+username+" ]; then 	source /etc/customalias.sh; fi"
+
+		usermod_sudo_cmd = "sudo usermod -aG sudo "+username
+		command_restriuction = "alias rm='echo remove contenet is restricted' \n alias poweroff='echo Poweroff is restricted' \n \
+alias chmod='echo Change Permission is restristed' \n alias mysql='echo Change Permission is restristed' \n \
+alias mv='echo Change Permission is restristed'\n alias rmdir='echo Change Permission is restristed' \n alias cp='echo Change Permission is restristed' \n \
+alias chown='echo Change Permission is restristed' \n alias chgrp='echo Change Permission is restristed' \n alias kill='echo Change Permission is restristed' \n \
+alias passwd='echo Change Permission is restristed' \n alias su='echo Change Permission is restristed' \n alias reboot='echo Change Permission is restristed' \n \
+alias curl='echo Change Permission is restristed' \n alias diff='echo Change Permission is restristed' \n alias history='echo Change Permission is restristed'"
+	
+		file.write(command_restriuction)
+		file1.write(profile_condition)
+		os.system("chmod +x *.sh")
+		cwd = os.getcwd()
+		path = cwd.replace('sites','apps/server/pulluser_indictrans_server')
+		scp_syntax = "sudo scp -rpi "+path+" -P "+filters.get('port')+"  "+cwd+"/customalias.sh  s-a-p@"+filters.get('server_ip')+":/home/s-a-p/."
+		scp_syntax1 = "sudo scp -rpi "+path+" -P "+filters.get('port')+"  "+cwd+"/customsource.sh  s-a-p@"+filters.get('server_ip')+":/home/s-a-p/."
+		print ("----------------------->",scp_syntax,scp_syntax1)
+		os.system(scp_syntax)
+		os.system(scp_syntax1)
+		copy_files1 = "sudo scp -r customalias.sh /etc/."
+		copy_files2 = "sudo scp -r customsource.sh /etc/profile.d/."
+
+		single_command = usermod_sudo_cmd+";"+copy_files1+";"+copy_files2
+		command_details = { 'cmd':single_command }
+		return command_details
+
+	except Exception as e:
+		raise e
+
+
 @frappe.whitelist()
 def get_support_member(doctype,text,searchfields,start,pagelen,filters):
 	return frappe.db.sql(""" 
@@ -176,7 +277,17 @@ def get_support_member(doctype,text,searchfields,start,pagelen,filters):
 			designation='{designation}'		
 		""".format( designation = filters.get('Designation')))
 
-		
+def supper_user_permission(user):
+	server_access = frappe.db.get_values('Server Access Portal', {'support_email_id': user}, ['name','owner','support_email_id'], as_dict=1)
+	if user!= 'Administrator':
+		if len(server_access):
+			if user!= server_access[0].get('owner'):
+				return """ `tabServer Access Portal`.owner='{0}' and `tabServer Access Portal`.support_email_id='{1}' """.format(server_access[0].get('owner'), user)
+		else:
+			return """ `tabServer Access Portal`.owner='{0}' """.format(user) 	
+
+
+
 
 	
 

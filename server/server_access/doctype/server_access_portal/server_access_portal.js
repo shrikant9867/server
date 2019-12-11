@@ -9,6 +9,53 @@ frappe.ui.form.on('Server Access Portal', {
 				frm.set_df_property('purpose', 'read_only', 1);
 				frm.set_df_property('sudo_user_access', 'read_only', 1);
 
+				if (frappe.session.user == frm.doc.support_email_id) {
+					frm.add_custom_button(__('Add Sudo Permission'), function () {
+						frappe.call({
+									method: "server.server_access.doctype.server_access_portal.server_access_portal.sudo_access_grant",
+									args: {
+										filters: frm.doc
+									},
+									callback: function(r) {
+										console.log("*--------------------------",r.message.sudo_access_granted)
+										if (r.message) {
+											if (r.message.sudo_access_granted == 1){
+												$('[data-label="Add%20Sudo%20Permission"]').hide()
+												frm.set_value("sudo_access_granted", r.message.sudo_access_granted);
+												frm.refresh_field("sudo_access_granted");
+												frappe.msgprint("</b>Sudo Access Granted</b>")
+												frm.save()
+											}
+										}
+									}
+								});
+
+			 		}).addClass('btn-primary');	
+				}
+				if (frm.doc.user_removed == 0) {
+						frm.add_custom_button(__('Remove User from Server'), function () {
+								frappe.call({
+									method: "server.server_access.doctype.server_access_portal.server_access_portal.remove_user",
+									args: {
+										filters: frm.doc
+									},
+									callback: function(r) {
+										console.log("*--------------------************------",r.message.user_removed)
+										if (r.message) {
+											if (r.message.user_removed == 1){
+												$('[data-label="Remove%20User%20from%20Server"]').hide()
+												frm.set_value("user_removed", r.message.user_removed);
+												frm.refresh_field("user_removed");
+												frappe.msgprint("</b>User Access Removed From Server</b>")
+												frm.save()
+											}
+										}
+									}
+								});
+								
+
+					 		}).addClass('btn-primary');
+				}
 		}
 		if (frm.doc.__islocal) {
 			frm.set_df_property('sudo_request_to_support', 'hidden', 1);
