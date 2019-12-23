@@ -5,7 +5,7 @@ from frappe import _
 def get_data():
 	return [
 		{
-			"module_name": "Server-Access",
+			"module_name": "The GateKeeper",
 			"color": "grey",
 			"icon": "octicon octicon-key",
 			"type": "module",

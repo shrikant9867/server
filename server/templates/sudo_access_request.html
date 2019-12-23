@@ -8,14 +8,14 @@
 
 <div class = "row">
 	<p>User {{ data.username }} want Sudo Privilege Access to the Respective Server <b>{{ data.server_ip }} </b>. </p>
-	<p>Please check his/her purpose for sudo privilege,If is satisfactory Execute below command from Table on Server and Share user password on Mail</p>
+	<p>Please check his/her purpose for sudo privilege,If is satisfactory Please provide grant sudo access on form {{ data.name }} through UI  and Share user password on Mail</p>
 </div>
 
 <div class="row">
 	<table class="table table-bordered table-hover">
 		<thead>
 			<tr>
-				<th class="text-left">Command Details</th>
+				<th class="text-left">Form Details</th>
 				<th class="text-left">Passphrase</th>
 				<th class="text-left">Purpose</th>
 				<th class="text-left">Account Expiry Date</th>
@@ -23,7 +23,7 @@
 		</thead>
 		<tbody>
 				<tr>
-					<td> <b>sudo usermod -a -G {{ data.super_user_name }} {{ username }} </b></td>
+					<td> <b> {{ data.name }}</b></td>
 					<td>{{ password }}</td>
 					<td>{{ data.purpose }}</td>
 					<td>{{ data.time_period  }}</td>

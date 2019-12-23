@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from . import __version__ as app_version
 
 app_name = "server"
-app_title = "Server-Access"
+app_title = "The GateKeeper"
 app_publisher = "Indictrans"
 app_description = "server access provinding through GUI"
 app_icon = "octicon octicon-key"
@@ -67,9 +67,9 @@ app_license = "MIT"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
+permission_query_conditions = {
+	"Server Access Portal": "server.server_access.doctype.server_access_portal.server_access_portal.supper_user_permission",
+}
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
