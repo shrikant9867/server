@@ -3,14 +3,26 @@
 
 frappe.ui.form.on('Server Access Portal', {
 	refresh: function(frm) {
-		 if (!frm.doc.__islocal) {		
+		if (!frm.doc.__islocal) {		
 		 		frm.set_df_property('time_period', 'read_only', 1);
 				frm.set_df_property('server_ip', 'read_only', 1);
 				frm.set_df_property('purpose', 'read_only', 1);
 				frm.set_df_property('sudo_user_access', 'read_only', 1);
+				if (frm.doc.user_history == null) {
+						frm.set_df_property('user_history', 'read_only', 0);
+					}
+				else{
+					frm.set_df_property('user_history', 'read_only', 1);
+				}
+					
+				frm.set_df_property('sudo_request_to_support', 'read_only', 1);
 
 				if (frappe.session.user == frm.doc.support_email_id) {
 					frm.add_custom_button(__('Add Sudo Permission'), function () {
+						if (frm.doc.sudo_access_granted == 1) {
+							frappe.throw("<b>Already sudo access granted to user</b>")
+						}
+						else{
 						frappe.call({
 									method: "server.server_access.doctype.server_access_portal.server_access_portal.sudo_access_grant",
 									args: {
@@ -29,12 +41,17 @@ frappe.ui.form.on('Server Access Portal', {
 										}
 									}
 								});
-
+					}
 			 		}).addClass('btn-primary');	
 				}
 				if (frm.doc.user_removed == 0) {
-						frm.add_custom_button(__('Remove User from Server'), function () {
-								frappe.call({
+					frm.add_custom_button(__('Remove User from Server'), function () {
+						if (frm.doc.user_history == null) {
+						$('[data-fieldname="user_history"]').focus();
+						frappe.throw("Please Provide Your Linux <b>User History</b> before Remove Access");
+					}
+					else{
+							frappe.call({
 									method: "server.server_access.doctype.server_access_portal.server_access_portal.remove_user",
 									args: {
 										filters: frm.doc
@@ -47,14 +64,15 @@ frappe.ui.form.on('Server Access Portal', {
 												frm.set_value("user_removed", r.message.user_removed);
 												frm.refresh_field("user_removed");
 												frappe.msgprint("</b>User Access Removed From Server</b>")
+												frm.set_df_property('user_history', 'read_only', 1);
+												frm.set_value("user_status", "Deactive");
 												frm.save()
 											}
 										}
 									}
 								});
-								
-
-					 		}).addClass('btn-primary');
+							}
+					}).addClass('btn-primary');
 				}
 		}
 		if (frm.doc.__islocal) {

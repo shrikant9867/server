@@ -11,9 +11,11 @@ from frappe.model.document import Document
 import re, smtplib, json
 from frappe.utils import encode, nowdate, cstr, flt, cint, now, getdate,add_days,random_string
 from dateutil import parser
-
+from paramiko import SSHClient
+from scp import SCPClient
 
 passpharse = frappe.utils.random_string(length=12)
+password = frappe.utils.random_string(length=12)
 count = 1
 
 class ServerAccessPortal(Document):
@@ -41,9 +43,14 @@ class ServerAccessPortal(Document):
 			if emp_details[0].get('employee_name') == self.username:
 				frappe.throw("<b>You can't Send Sudo Access Request to Self, Send it to Other Support Member</b>")
 	
+	def validate_user(self):
+		active_list = frappe.db.get_values("Server Access Portal", {"user_status": "Active", "server_ip" : self.server_ip, "username":self.username } , "name", as_dict=1)
+		if len(active_list):
+			frappe.throw("User Already <b> Active on Same Server </b>, Please Remove user <b>"+str(active_list[0].get('name'))+"</b>")
+
+	
 	def create_user_command(self):
 		username  = self.username.replace(' ','')
-		password = frappe.utils.random_string(length=12)
 		expiry_date  = self.time_period
 		if self.duplicate_record:
 			useradd_cmd = "sudo usermod -e '"+expiry_date+"' "+username
@@ -57,6 +64,7 @@ class ServerAccessPortal(Document):
 		return user_details
 
 	def before_insert(self):
+		self.validate_user()
 		user  = frappe.db.get_values("Server Access Portal", {"username": self.username}, ["username"])
 		if user:
 			self.duplicate_record = 1
@@ -151,7 +159,8 @@ class ServerAccessPortal(Document):
 				print ("========><======",output)
 				s.close()
 				self.sendMailtoUser(command_list_string, command_list.get('password') )						
-				
+				frappe.db.set_value("Server Access Portal", self.name, "user_status", "Active")
+				frappe.db.commit()
 			else:
 				frappe.throw("Server IP is not Reachable:",host_ip)
 
@@ -233,32 +242,22 @@ def remove_user_from_server(filters):
 def sudo_privilege_granting(filters):
 	try:
 		username = filters.get('username').replace(' ','')
-		file = open("customalias.sh","w+")
-		file1 = open("customsource.sh","w+")
-		profile_condition = "if [ `whoami` == "+username+" ]; then 	source /etc/customalias.sh; fi"
-
-		usermod_sudo_cmd = "sudo usermod -aG sudo "+username
-		command_restriuction = "alias rm='echo remove contenet is restricted' \n alias poweroff='echo Poweroff is restricted' \n \
-alias chmod='echo Change Permission is restristed' \n alias mysql='echo Change Permission is restristed' \n \
-alias mv='echo Change Permission is restristed'\n alias rmdir='echo Change Permission is restristed' \n alias cp='echo Change Permission is restristed' \n \
-alias chown='echo Change Permission is restristed' \n alias chgrp='echo Change Permission is restristed' \n alias kill='echo Change Permission is restristed' \n \
-alias passwd='echo Change Permission is restristed' \n alias su='echo Change Permission is restristed' \n alias reboot='echo Change Permission is restristed' \n \
-alias curl='echo Change Permission is restristed' \n alias diff='echo Change Permission is restristed' \n alias history='echo Change Permission is restristed'"
-	
-		file.write(command_restriuction)
-		file1.write(profile_condition)
-		os.system("chmod +x *.sh")
-		cwd = os.getcwd()
-		path = cwd.replace('sites','apps/server/pulluser_indictrans_server')
-		scp_syntax = "sudo scp -rpi "+path+" -P "+filters.get('port')+"  "+cwd+"/customalias.sh  s-a-p@"+filters.get('server_ip')+":/home/s-a-p/."
-		scp_syntax1 = "sudo scp -rpi "+path+" -P "+filters.get('port')+"  "+cwd+"/customsource.sh  s-a-p@"+filters.get('server_ip')+":/home/s-a-p/."
-		print ("----------------------->",scp_syntax,scp_syntax1)
-		os.system(scp_syntax)
-		os.system(scp_syntax1)
-		copy_files1 = "sudo scp -r customalias.sh /etc/."
-		copy_files2 = "sudo scp -r customsource.sh /etc/profile.d/."
-
-		single_command = usermod_sudo_cmd+";"+copy_files1+";"+copy_files2
+		rbash_cmd = "ln -s /bin/bash /bin/rbash"
+		usermod_sudo_cmd = "sudo deluser "+username+" && sudo useradd -s /bin/rbash "+username+" && sudo usermod -aG sudo "+username
+		passwd_cmd = "echo "+username+":"+password+" > secrets1.txt && sudo chpasswd < secrets.txt && sudo chsh -s /bin/bash "+username
+		mkdir_bin = "sudo mkdir /home/"+username+"/commands"
+		rbash_permission = "sudo chmod o+x /bin/rbash"
+		user_perm_rbash = "sudo chown "+username+"."+username+" /home/"+username+"/commands/"
+		command_access_string = "sudo scp /bin/ls /home/"+username+"/commands/ls; \
+sudo scp /bin/mkdir /home/"+username+"/commands/mkdir; sudo scp /usr/bin/touch /home/"+username+"/commands/touch; \
+sudo scp /bin/echo /home/"+username+"/commands/echo; sudo scp /bin/nano /home/"+username+"/commands/nano; \
+sudo scp /usr/bin/vi /home/"+username+"/commands/vi;sudo scp /bin/cat /home/"+username+"/commands/cat"
+		folder_permission = "sudo chmod 755 -R /home/"+username+"/commands/."
+		replace = 'PATH="$HOME/bin:$HOME/.local/bin:$PATH"'
+		add = 'PATH=$HOME/commands'
+		replace_profiled = "sudo sed -i 's|"+replace+"|"+add+"|g' /home/"+username+"/.profile"
+		single_command = rbash_cmd+";"+usermod_sudo_cmd+";"+passwd_cmd+";"+mkdir_bin+";"+rbash_permission+";\
+		"+user_perm_rbash+";"+command_access_string+";"+folder_permission+";"+replace_profiled
 		command_details = { 'cmd':single_command }
 		return command_details
 
