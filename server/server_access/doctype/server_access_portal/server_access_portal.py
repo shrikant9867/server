@@ -287,7 +287,7 @@ def supper_user_permission(user):
 	if user!= 'Administrator':
 		if len(server_access):
 			if user!= server_access[0].get('owner'):
-				return """ `tabServer Access Portal`.created_by='{0}' and `tabServer Access Portal`.support_email_id='{1}' """.format(server_access[0].get('owner'), user)
+				return """ `tabServer Access Portal`.created_by='{0}' and `tabServer Access Portal`.owner != '{1}' and `tabServer Access Portal`.support_email_id='{1}' """.format(server_access[0].get('owner'), user)
 		else:
 			return """ `tabServer Access Portal`.owner='{0}' """.format(user) 	
 
