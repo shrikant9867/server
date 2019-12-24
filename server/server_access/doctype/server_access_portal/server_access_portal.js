@@ -61,12 +61,14 @@ frappe.ui.form.on('Server Access Portal', {
 										if (r.message) {
 											if (r.message.user_removed == 1){
 												$('[data-label="Remove%20User%20from%20Server"]').hide()
-												frm.set_value("user_removed", r.message.user_removed);
-												frm.refresh_field("user_removed");
-												frappe.msgprint("</b>User Access Removed From Server</b>")
+												// frm.set_value("user_removed", r.message.user_removed);
 												frm.set_df_property('user_history', 'read_only', 1);
-												frm.set_value("user_status", "Deactive");
-												frm.save()
+												frm.refresh_field("user_removed");
+												frm.refresh_field("user_status");
+												frm.refresh_field("user_history");
+												cur_frm.reload_doc();
+												frappe.msgprint("</b>User Access Removed From Server</b>")
+												// frm.set_value("user_status", "Deactive")
 											}
 										}
 									}

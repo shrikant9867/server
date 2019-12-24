@@ -160,6 +160,7 @@ class ServerAccessPortal(Document):
 				s.close()
 				self.sendMailtoUser(command_list_string, command_list.get('password') )						
 				frappe.db.set_value("Server Access Portal", self.name, "user_status", "Active")
+				frappe.db.set_value("Server Access Portal", self.name, "created_by", self.user_email)
 				frappe.db.commit()
 			else:
 				frappe.throw("Server IP is not Reachable:",host_ip)
@@ -180,6 +181,11 @@ def remove_user(filters):
 	count = 1 
 	data = ssh_to_user(filters,  count)
 	data.update({'user_removed': 1 })
+	filters = json.loads(filters)
+	frappe.db.set_value("Server Access Portal", filters.get('name'), "user_status", "Deactive")
+	frappe.db.set_value("Server Access Portal", filters.get('name'), "user_removed", 1)
+	frappe.db.set_value("Server Access Portal", filters.get('name'), "user_history", filters.get('user_history'))
+	frappe.db.commit()
 	return data
 
 @frappe.whitelist()
@@ -281,7 +287,7 @@ def supper_user_permission(user):
 	if user!= 'Administrator':
 		if len(server_access):
 			if user!= server_access[0].get('owner'):
-				return """ `tabServer Access Portal`.owner='{0}' and `tabServer Access Portal`.support_email_id='{1}' """.format(server_access[0].get('owner'), user)
+				return """ `tabServer Access Portal`.created_by='{0}' and `tabServer Access Portal`.support_email_id='{1}' """.format(server_access[0].get('owner'), user)
 		else:
 			return """ `tabServer Access Portal`.owner='{0}' """.format(user) 	
 
